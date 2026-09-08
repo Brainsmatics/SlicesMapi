@@ -1,0 +1,9 @@
+Mode1
+python predict_m1.py config_dir data_dir save_dir
+
+Mode2
+python predict_m2.py config_dir data_dir save_dir interval slice_num
+
+
+images_name:
+0001.tif ********* 000n.tif

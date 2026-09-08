@@ -1,0 +1,1 @@
+python3.6.5 tensorflow1.15 pillow simpleitk numpy tqdm shutil zipfile
