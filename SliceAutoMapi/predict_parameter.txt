@@ -5,5 +5,11 @@ Mode2
 python predict_m2.py config_dir data_dir save_dir interval slice_num
 
 
+non-rigid registration:
+registration_mask1.sh
+registration_mask2.sh
+registration_mask3.sh
+ref:https://doi.org/10.1007/s12021-025-09724-7
+
 images_name:
 0001.tif ********* 000n.tif
