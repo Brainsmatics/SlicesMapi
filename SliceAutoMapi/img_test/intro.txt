@@ -1,0 +1,3 @@
+moving -- test img
+fixed -- predict img
+show -- predict img 8bit
