@@ -52,6 +52,10 @@ python predict_m2.py config_dir data_dir save_dir interval slice_num
 python predict_m2.py ./Config_new.ini ./image_test/ ./image_predict/ 10 50
 ```
 
+📦 Model Weights
+
+Pretrained model weights for test are available on Hugging Face, more model weights for different usage will upload soon. (https://huggingface.co/ztzhang123/SliceAutoMapi/tree/main)
+
 📂 Project Structure
 
 ```text
