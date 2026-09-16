@@ -8,10 +8,6 @@
 
 📖 Introduction
 
-This project contains two method and this file is for SliceAutoMapi:
-
-SlicesMapi: Prepared for SlicesMapi: An Interactive Three‑Dimensional Registration Method for Serial Histological Brain Slice
-
 SliceAutoMapi: Prepared for SliceAutoMapi: High-throughput Automated Mapping of 2D Mouse Brain Image Slices to 3D Brain Volumes
 
 📦 Prerequisites
