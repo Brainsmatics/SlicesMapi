@@ -6,6 +6,8 @@ import argparse
 #import imageio
 import os
 import sys
+import glob
+import re
 from PIL import Image
 import imageio
 import tqdm
@@ -382,31 +384,50 @@ def main(argv):
     # dataset = dataset.shuffle(FLAGS.queue_buffer)
     dataset = dataset.batch(1)
     image, vec, qt, AP1, AP2, AP3 = dataset.make_one_shot_iterator().get_next()
-    
+    os.makedirs(savedir, exist_ok=True)
 
 
     # Nifti Volume
-    try:
-        fixed_path = conn.get('DIR','fixed_dir')
-        fixed_image_sitk_tmp    = sitk.ReadImage(fixed_path, sitk.sitkFloat32)
-        fixed_image_sitk        = sitk.GetImageFromArray(sitk.GetArrayFromImage(fixed_image_sitk_tmp))
+    # try:
+    # fixed_path = conn.get('DIR','fixed_dir')
+    # fixed_image_sitk_tmp    = sitk.ReadImage(fixed_path, sitk.sitkFloat32)
+    # fixed_image_sitk        = sitk.GetImageFromArray(sitk.GetArrayFromImage(fixed_image_sitk_tmp))
     
-        ann_path = conn.get('DIR','ann_dir')
-        ann_image_sitk_tmp    = sitk.ReadImage(ann_path, sitk.sitkFloat32)
-        ann_image_sitk        = sitk.GetImageFromArray(sitk.GetArrayFromImage(ann_image_sitk_tmp))
-    except Exception as e:
-        GetLog().log().error("code:404")
+    ann_path = conn.get('DIR','ann_dir')
+    ann_image_sitk_tmp    = sitk.ReadImage(ann_path, sitk.sitkFloat32)
+    ann_image_sitk        = sitk.GetImageFromArray(sitk.GetArrayFromImage(ann_image_sitk_tmp))
+    # except Exception as e:
+    #     GetLog().log().error("code:404")
     #fixed_image_sitk        = sitk.RescaleIntensity(fixed_image_sitk, 0, 1) * 255.
     # Network Definition
     image_resized = tf.image.resize_images(image, size=[299, 299])
     res1=[]
     res2=[]
+
+
+
+
+    
+    file_list = glob.glob(os.path.join(datadir, "*.tif"))
+
+    
+    def get_number_from_path(fp):
+        basename = os.path.basename(fp)
+        nums = re.findall(r"\d+", basename)
+        return int(nums[0])   
+
+    file_list.sort(key=get_number_from_path)
+
+    #slice_num = len(file_list)   
     for i in range(slice_num):
-        
-        imagedir=datadir+'/{0:0>4d}.tif'.format(i*interval+1)
-        savedir0=savedir+'/image_{0:0>4d}_t.tif'.format(i*interval+1)
-        savedir1=savedir+'/image_{0:0>4d}_p.tif'.format(i*interval+1)
-        savedir2=savedir+'/atlas_{0:0>4d}_p.tif'.format(i*interval+1)
+        imagedir = file_list[i]
+
+        basename_full = os.path.basename(imagedir)
+        raw_name, _ = os.path.splitext(basename_full)
+        savedir0 = os.path.join(savedir, f"{raw_name}_t.tif")
+        savedir1 = os.path.join(savedir, f"{raw_name}_single.tif")
+        savedir2 = os.path.join(savedir, f"{raw_name}_combine.tif")
+
         image0=Image.open(imagedir)
         image1=image0.resize([299,299])
         image_np=load_image_into_numpy_array(image1)
@@ -415,7 +436,7 @@ def main(argv):
         image_np_expanded= np.expand_dims(image_np,axis=0)
     # Network Definition
         ckpt_file = tf.train.latest_checkpoint(conn.get('DIR','model_dir'))
-        if method_key == 1:
+        if method_key == '1':
             y_pred, _ = build_model(image_resized, is_training=False)
             sess =tf.Session()
             restore_vars = [v for v in tf.global_variables() if "Adam" not in v.name]
@@ -424,13 +445,13 @@ def main(argv):
             saver.restore(sess, ckpt_file)
             _y_pred,_ = sess.run([y_pred, _], feed_dict={image_resized: image_np_expanded})
             _AP1,_AP2,_AP3 = split_points(_y_pred)
-        if method_key == 2:
+        if method_key == '2':
             y_pred, _ = inception.inception_v3(image_resized, num_classes=9, is_training=False,reuse=tf.AUTO_REUSE)
             AP1_pred, AP2_pred, AP3_pred = tf.split(y_pred, 3, axis=1)
             sess = tf.Session()
             tf.train.Saver().restore(sess, ckpt_file)
             _AP1,_AP2,_AP3=sess.run([AP1_pred,AP2_pred,AP3_pred],feed_dict={image_resized:image_np_expanded})
-        if method_key ==3:
+        if method_key =='3':
             _, y_pred = build_model(image_resized, is_training=False)
             sess =tf.Session()
             restore_vars = [v for v in tf.global_variables() if "Adam" not in v.name]
@@ -440,62 +461,73 @@ def main(argv):
             _,_y_pred = sess.run([_,y_pred], feed_dict={image_resized: image_np_expanded})
             _AP1,_AP2,_AP3 = split_points(_y_pred)
 
-        try:
+        # try:
 
-            tx = _AP2[0]*700
+        tx = _AP2[0]*700
             #print(tx)
-            rx = matrix_from_anchor_points(_AP1[0],_AP2[0],_AP3[0])
+        rx = matrix_from_anchor_points(_AP1[0],_AP2[0],_AP3[0])
             #print(rx)
-            fixed_pred=resample_sitk(fixed_image_sitk,rx,tx)
-            ann_pred=resample_sitk(ann_image_sitk,rx,tx)
-            ann_min=np.min(ann_pred)
-            ann_max=np.max(ann_pred)
-            ann_8bit=(ann_pred-ann_min)/(ann_max-ann_min+1)*255
-        except Exception as e:
-            GetLog().log().error("code:1001")
+            # fixed_pred=resample_sitk(fixed_image_sitk,rx,tx)
+        ann_pred=resample_sitk(ann_image_sitk,rx,tx)
+        ann_min=np.min(ann_pred)
+        ann_max=np.max(ann_pred)
+        ann_8bit=(ann_pred-ann_min)/(ann_max-ann_min+1)*255
+        # except Exception as e:
+        #     GetLog().log().error("code:1001")
 
         res1.append(str(rx))
         res2.append(str(tx))
 
         imageio.imsave(savedir0, np.uint8(image_np))
-        imageio.imsave(savedir1, np.uint8(np.fliplr(fixed_pred)))
-        imageio.imsave(savedir2, np.uint8(np.fliplr(ann_8bit)))
+        imageio.imsave(savedir1, np.uint8(np.fliplr(ann_8bit)))
+
     if interval>1 and slice_num>10:
-        start = float(res2[3].strip(']').strip('[').split()[2]) - 3*interval if slice_num>3 else float(res2[0].strip(']').strip('[').split()[2])
-        mid1 = float(res2[slice_num//2-1].strip(']').strip('[').split()[2])
-        mid2 = float(res2[slice_num//2].strip(']').strip('[').split()[2])
-        end = float(res2[-1].strip(']').strip('[').split()[2])
+        z_seq = np.array([float(s.strip(']').strip('[').split()[2]) for s in res2])
+        n = len(res2)   
+        if n <8:
+            tmp = z_seq.copy()
+        else:
+            a1 = int(0.25 * n)
+            a2 = int(0.40 * n)
+            a3 = int(0.60 * n)
+            a4 = int(0.75 * n)
+            anchor_idx_raw = np.array([a1,a2,a3,a4])
+            anchor_idx = np.clip(anchor_idx_raw,0,n-1)
+            anchor_z = z_seq[anchor_idx]
 
-        tmp1=np.linspace(start,mid1,slice_num//2)
-        tmp2=np.linspace(mid2,end,slice_num-slice_num//2)
-        tmp = np.concatenate((tmp1,tmp2))
+            from scipy.interpolate import interp1d
+            fit_func = interp1d(anchor_idx, anchor_z, kind='linear', fill_value="extrapolate")
+            tmp = fit_func(np.arange(n))
 
-        newrs = np.zeros([len(res2),3])
-        for i in range(len(res2)):
+            thresh = interval *0.75
+            residual = np.abs(z_seq - tmp)
+            for k in range(n):
+                if residual[k]<thresh:
+                    tmp[k]=z_seq[k]
 
-            #print(res.strip(']').strip('[').split()[2])
+        newrs = np.zeros([n,3])
+        for i in range(n):
             newrs[i,0] = np.float(res2[i].strip(']').strip('[').split()[0])
             newrs[i,1] = np.float(res2[i].strip(']').strip('[').split()[1])
             newrs[i,2] = tmp[i]
 
-        for i in range(len(res2)):
-            rx = res1[0].strip('[').strip(']').split()
-            rxx = np.zeros([3, 3])
-            rxx[0, 0] = rx[0].strip(']').strip('[')
-            rxx[0, 1] = rx[1].strip(']').strip('[')
-            rxx[0, 2] = rx[2].strip(']').strip('[')
-            rxx[1, 0] = rx[3].strip(']').strip('[')
-            rxx[1, 1] = rx[4].strip(']').strip('[')
-            rxx[1, 2] = rx[5].strip(']').strip('[')
-            rxx[2, 0] = rx[6].strip(']').strip('[')
-            rxx[2, 1] = rx[7].strip(']').strip('[')
-            rxx[2, 2] = rx[8].strip(']').strip('[')
-            tx = newrs[i]
-            fixed_pred=resample_sitk(fixed_image_sitk,rxx,tx)
-            ann_pred=resample_sitk(ann_image_sitk,rxx,tx)
-            imageio.imsave(savedir+str(i*interval+1)+'_show.jpg', np.uint8(np.fliplr(fixed_pred)))
-            imageio.imsave(savedir+str(i*interval+1)+'_ann.tif', np.uint8(np.fliplr(ann_pred)))
 
+        for i in range(n):
+            rx = res1[0].strip('[').strip(']').split()
+            rxx = np.zeros([3,3])
+            rxx[0,0] = rx[0].strip(']').strip('[')
+            rxx[0,1] = rx[1].strip(']').strip('[')
+            rxx[0,2] = rx[2].strip(']').strip('[')
+            rxx[1,0] = rx[3].strip(']').strip('[')
+            rxx[1,1] = rx[4].strip(']').strip('[')
+            rxx[1,2] = rx[5].strip(']').strip('[')
+            rxx[2,0] = rx[6].strip(']').strip('[')
+            rxx[2,1] = rx[7].strip(']').strip('[')
+            rxx[2,2] = rx[8].strip(']').strip('[')
+            tx = newrs[i]
+            ann_pred=resample_sitk(ann_image_sitk,rxx,tx)
+            imageio.imsave(savedir2,np.uint8(np.fliplr(ann_pred)))
+        
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     ltime = time.strftime('%Y%m%d%H%M%S',time.localtime(time.time()))
