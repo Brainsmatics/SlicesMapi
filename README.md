@@ -41,9 +41,9 @@ pip install -r requirements.txt
 # Train
 python train_model.py
 # Predict Mode1
-python predict_m1.py config_dir data_dir save_dir
+python predict_SliceAutoMapi.py config_dir data_dir save_dir 0 slice_num
 # Predict Mode2
-python predict_m2.py config_dir data_dir save_dir interval slice_num
+python predict_SliceAutoMapi.py config_dir data_dir save_dir interval slice_num
 ```
 
 💡 Usage Example
