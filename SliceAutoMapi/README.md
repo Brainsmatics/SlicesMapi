@@ -50,11 +50,9 @@ pip install -r requirements.txt
 3.Run the Project
 
 ```bash
-# Train
-python train_model.py
-# Predict Mode1
+# Predict Mode1   Output:_single.tif
 python predict_SliceAutoMapi.py config_dir data_dir save_dir 0 slice_num
-# Predict Mode2
+# Predict Mode2   Output:_single_tif + _combine.tif
 python predict_SliceAutoMapi.py config_dir data_dir save_dir interval slice_num
 ```
 
