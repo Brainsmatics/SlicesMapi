@@ -1,0 +1,8 @@
+python==3.6.5 
+tensorflow==1.15 
+pillow 
+simpleitk 
+numpy 
+tqdm 
+shutil 
+zipfile
